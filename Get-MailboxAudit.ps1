@@ -123,6 +123,9 @@ function Get-MailboxAudit {
         $global:users_count = 0
         $global:session = $null
 
+        # Fix filter parameter is there is any:
+        if ($Filter) { $Filter = "-and $Filter" }
+
         ## Load write-error helper function:
         function Write-Error ($message) {
             [Console]::ForegroundColor = 'red'
