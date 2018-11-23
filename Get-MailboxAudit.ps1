@@ -194,7 +194,7 @@ function Get-MailboxAudit {
                             # Request and output the folder permission:
                             Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-MailboxFolderPermission -Identity $using:folderQualifiedName } | Where-Object {$_.AccessRights -ne 'none' -and $_.IsValid -eq $true -and $_.user -notin $Exclude} | Select-Object @{n='User';e={$Identity}},@{n='GrantedUser';e={$_.User -join ', '}},@{n='AccessType';e={"Folder:$proccessingfolder"}},@{n='Permission';e={$_.AccessRights -join ', '}},@{n='Details';e={$_.SharingPermissionFlags -join ', '}}
                             
-                            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Top Folder permission of $Identity --> $ErrorOut" }
+                            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Top Folder permission of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
                             if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
                         }
                         #
@@ -219,11 +219,12 @@ function Get-MailboxAudit {
                             # Verbose
                             Write-Verbose "[Get-MailboxAudit] Listing Folder names of $Identity, folder scope: $proccessingfolder"
 
-                            $folders = Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-MailboxFolderStatistics -Identity $using:Identity -FolderScope $using:proccessingfolder | Select-Object FolderId, FolderPath, FolderType }
+                            $folders = Invoke-Command   -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue `
+                                                        -ScriptBlock { Get-MailboxFolderStatistics -Identity $using:Identity -FolderScope $using:proccessingfolder | Select-Object FolderId, FolderPath, FolderType }
                             
                             # Check if we've recived folders:
                             if (-not($folders)) {
-                                if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Folder Listing of $Identity --> $ErrorOut" }
+                                if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Folder Listing of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
                                 if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
                             }
                             else {
@@ -307,7 +308,7 @@ function Get-MailboxAudit {
 
             # Request and output the permissions:
             Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-RecipientPermission -ResultSize unlimited -Identity $using:Identity } | Where-Object {$_.AccessControlType -eq 'allow' -and $_.trustee -notmatch 'SELF$'} | Select-Object @{n='User';e={$_.identity}},@{n='GrantedUser';e={$_.trustee -join ', '}},@{n='AccessType';e={'MailboxSendAs'}},@{n='Permission';e={$_.accessrights -join ', '}},@{n='Details';e={''}}
-            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting SendAs permissions of $Identity --> $ErrorOut" }
+            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting SendAs permissions of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
             if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
         }
 
@@ -328,7 +329,7 @@ function Get-MailboxAudit {
 
             # Request and output the permissions:
             Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-MailboxPermission -ResultSize unlimited -Identity $using:Identity } | Where-Object {$_.isinherited -eq $false -and $_.user -notmatch 'SELF$' -and $_.isvalid -eq $true -and $_.deny -eq $false -and $_.Identity -notmatch 'DiscoverySearchMailbox' -and $_.Identity -notmatch 'AggregateGroupMailbox'} | Select-Object @{n='User';e={$_.Identity}},@{n='GrantedUser';e={$_.user -join ', '}},@{n='AccessType';e={'MailboxPermission'}},@{n='Permission';e={$_.accessrights -join ', '}},@{n='Details';e={''}}
-            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Mailbox permissions of $Identity --> $ErrorOut" }
+            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Mailbox permissions of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
             if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
         }
 
@@ -349,7 +350,7 @@ function Get-MailboxAudit {
                 $i++
 
                 # Verbose
-                Write-Verbose "[Get-MailboxAudit] Iterating through mailbox $i of $global:users_count"
+                Write-Verbose "[Get-MailboxAudit] Iterating through mailbox $i of $global:users_count..."
     
                 #
                 # Grab the Folder permissions.
@@ -377,7 +378,7 @@ function Get-MailboxAudit {
     
                     # Request and output the rules:
                     Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-InboxRule -Mailbox $using:user_primarysmtpaddress | Select-Object Enabled,IsValid,ForwardAsAttachmentTo,ForwardTo,Description } | Where-Object {$_.enabled -eq $true -and $_.isvalid -eq $true -and ($_.ForwardAsAttachmentTo -ne $null -or $_.ForwardTo -ne $null) -and ($_.ForwardAsAttachmentTo -notmatch $user_emaildomain -or $_.ForwardTo -notmatch $user_emaildomain)} | Select-Object @{n='User';e={$user_primarysmtpaddress}},@{n='GrantedUser';e={$_.ForwardTo -join ',' -join $_.ForwardAsAttachmentTo}},@{n='AccessType';e={'ForwardRule'}},@{n='Permission';e={'Enabled'}},@{n='Details';e={$_.Description}} 
-                    if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Forwarding rules of $user_primarysmtpaddress --> $ErrorOut" }
+                    if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Forwarding rules of $user_primarysmtpaddress --> $ErrorOut"; $ErrorOut += " --> $user_primarysmtpaddress" }
                     if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
                 }
 
