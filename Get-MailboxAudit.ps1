@@ -110,6 +110,10 @@ function Get-MailboxAudit {
         [string] $ConnectionUri='https://outlook.office365.com/powershell-liveid/',
 
         [Parameter(Position=14, Mandatory=$false, ValueFromPipeline=$false)]
+        [ValidateSet('Default', 'Basic', 'Negotiate', 'NegotiateWithImplicitCredential', 'Credssp', 'Digest', 'Kerberos')]
+        [string] $Authentication='Basic',
+
+        [Parameter(Position=15, Mandatory=$false, ValueFromPipeline=$false)]
         [switch] $LoadFunctions
     )
 
@@ -146,7 +150,7 @@ function Get-MailboxAudit {
             # Configure the connection, depending of if -MFA is enabled or not:
             if ($MFA) { Connect-EXOPSSession -UserPrincipalName "$($credential.username)" -PSSessionOption $proxyOptions -ErrorAction Stop }
             else { 
-                $localsession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credential -Authentication Basic -AllowRedirection -SessionOption $proxyOptions -ErrorAction Stop
+                $localsession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credential -Authentication $Authentication -AllowRedirection -SessionOption $proxyOptions -ErrorAction Stop
                 Set-Variable -Name session -Value $localsession -Scope Global
             }
             
