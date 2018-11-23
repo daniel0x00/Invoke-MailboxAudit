@@ -1,3 +1,4 @@
+#Requires -Version 5
 function Get-MailboxAudit {
     <#
         .SYNOPSIS 
@@ -9,7 +10,7 @@ function Get-MailboxAudit {
             The mailbox you want to audit. It accepts wildcards, like: a* 
 
         .NOTES
-            Version:        4.5
+            Version:        4.6
             Author:         Daniel Ferreira
             Creation Date:  
                     v1.0:   5th  Nov. 2018
@@ -17,6 +18,7 @@ function Get-MailboxAudit {
                     v3.0:   10th Nov. 2018
                     v4.0:   14th Nov. 2018
                     v4.5:   16th Nov. 2018
+                    v4.6:   23rd Nov. 2018
             Purpose:        Combine all Exchange permissions given by a user to a delegate in a single script. 
                             Possible work with Exchange Server 2010+, but untested and missing some parameters like -DomainController on cmdlets. 
 
@@ -107,7 +109,7 @@ function Get-MailboxAudit {
         [string] $OutputErrorsFile=$('Get-MailboxAuditErrors_'+ (Get-Date -Format d).Replace('/','-') +'.txt'),
 
         [Parameter(Position=13, Mandatory=$false, ValueFromPipeline=$false)]
-        [string] $ConnectionUri='https://outlook.office365.com/powershell-liveid/',
+        [string] $ConnectionUri='https://outlook.office365.com/powershell-liveid/', # For Exchange on-premises, use: http://<ServerFQDN>/PowerShell/
 
         [Parameter(Position=14, Mandatory=$false, ValueFromPipeline=$false)]
         [ValidateSet('Default', 'Basic', 'Negotiate', 'NegotiateWithImplicitCredential', 'Credssp', 'Digest', 'Kerberos')]
