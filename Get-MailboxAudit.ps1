@@ -340,6 +340,14 @@ function Get-MailboxAudit {
         }
 
         
+        ## 
+        ## Test connection to Exchange.
+        ## Checking the connection is needed in case of dealing with large lists of mailboxes.
+        ## The reason to check the connection at this point is because if there is a check for Mailbox permissions with a long list of users (e.g.: a*), the connection can be lost at this point
+        ##
+        testConnection
+
+
         ##
         ### Initiating a loop for each of the identities.
         ### This is needed because the below Exchange/EXO do not support wildcards.
@@ -390,7 +398,8 @@ function Get-MailboxAudit {
 
                 ## 
                 ## Test connection to Exchange.
-                ## Checking the connection is needed in case of dealing with large lists of mailboxes
+                ## Checking the connection is needed in case of dealing with large lists of mailboxes.
+                ## This check is at the folder permission level, means will catch when there is a long list of user-created folders and the connection is lost while checking on some folder. 
                 ##
                 testConnection
             })
