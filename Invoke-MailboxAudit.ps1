@@ -1,5 +1,5 @@
 #Requires -Version 5
-function Get-MailboxAudit {
+function Invoke-MailboxAudit {
     <#
         .SYNOPSIS 
             Grab all Exchange permissions of a user. MailBox level, SendAs, SendOnBehalf, Folder (Top of Information Store, Inbox, Sent Items, Calendar, etc) and more.
@@ -10,7 +10,7 @@ function Get-MailboxAudit {
             The mailbox you want to audit. It accepts wildcards, like: a* 
 
         .NOTES
-            Version:        4.6
+            Version:        4.7
             Author:         Daniel Ferreira
             Creation Date:  
                     v1.0:   5th  Nov. 2018
@@ -19,6 +19,7 @@ function Get-MailboxAudit {
                     v4.0:   14th Nov. 2018
                     v4.5:   16th Nov. 2018
                     v4.6:   23rd Nov. 2018
+                    v4.7:   15th Dec. 2018
             Purpose:        Combine all Exchange permissions given by a user to a delegate in a single script. 
                             Possible work with Exchange Server 2010+, but untested and missing some parameters like -DomainController on cmdlets. 
 
@@ -26,29 +27,29 @@ function Get-MailboxAudit {
             List all the permissions for 'user2' and 'user5' (folder permissions only in Inbox folder)
 
             PS C:\> $c = Get-Credential
-            PS C:\> 'user2','user5' | Get-MailboxAudit -Credential $c -Verbose | Format-Table -AutoSize
+            PS C:\> 'user2','user5' | Invoke-MailboxAudit -Credential $c -Verbose | Format-Table -AutoSize
 
         .EXAMPLE
             List all permissions but the Mailbox and Forwading rules for imported users, targeting folders Inbox, Calendar and Sent Items; regardless of the culture of the mailbox.
             In a MFA scenario, run this under a "Microsoft Exchange Online Remote PowerShell Module" console:
 
             PS C:\> $c = Get-Credential
-            PS C:\> Import-Csv .\Users.csv | Get-MailboxAudit -Credential $c -MFA -Proxy -SkipMailboxPermission -SkipForwardingRules -Folder Inbox,Calendar,SentItems -Verbose
+            PS C:\> Import-Csv .\Users.csv | Invoke-MailboxAudit -Credential $c -MFA -Proxy -SkipMailboxPermission -SkipForwardingRules -Folder Inbox,Calendar,SentItems -Verbose
         
         .EXAMPLE
             List all the permissions for users with a mailbox that starts by: a*
 
             PS C:\> $c = Get-Credential
-            PS C:\> Get-MailboxAudit -Credential $c -Identity a* -SkipMailboxPermission -Verbose 
+            PS C:\> Invoke-MailboxAudit -Credential $c -Identity a* -SkipMailboxPermission -Verbose 
         
         .EXAMPLE
             List all the permissions for all users in the tenant, for the Inbox and Sent Items folders, skipping all child user-created folders as well as forwarding rules:
 
             PS C:\> $c = Get-Credential
-            PS C:\> 97..(97+25) | select @{n='Identity';e={[char]$_+'*'}} | Get-MailboxAudit -Credential $c -Proxy -SkipMailboxPermission -SkipUserCreatedFolder -SkipForwardingRule -SkipSendAsPermission -Folder Inbox,SentItems -Verbose 
+            PS C:\> 97..(97+25) | select @{n='Identity';e={[char]$_+'*'}} | Invoke-MailboxAudit -Credential $c -Proxy -SkipMailboxPermission -SkipUserCreatedFolder -SkipForwardingRule -SkipSendAsPermission -Folder Inbox,SentItems -Verbose 
         
         .OUTPUTS
-            'user2','user5','mike' | Get-MailboxAudit -Credential $c -Verbose | Format-Table -AutoSize
+            'user2','user5','mike' | Invoke-MailboxAudit -Credential $c -Verbose | Format-Table -AutoSize
 
             User                          GrantedUser                                    AccessType                                        Permission                            Details
             ----                          -----------                                    ----------                                        ----------                            -------
@@ -106,7 +107,7 @@ function Get-MailboxAudit {
         [switch] $OutputErrors,
 
         [Parameter(Position=12, Mandatory=$false, ValueFromPipeline=$false)]
-        [string] $OutputErrorsFile=$('Get-MailboxAuditErrors_'+ (Get-Date -Format d).Replace('/','-') +'.txt'),
+        [string] $OutputErrorsFile=$('Invoke-MailboxAuditErrors_'+ (Get-Date -Format d).Replace('/','-') +'.txt'),
 
         [Parameter(Position=13, Mandatory=$false, ValueFromPipeline=$false)]
         [string] $ConnectionUri='https://outlook.office365.com/powershell-liveid/', # For Exchange on-premises, use: http://<ServerFQDN>/PowerShell/
@@ -144,7 +145,7 @@ function Get-MailboxAudit {
         
         function setConnection {
             # Verbose:
-            Write-Verbose "[Get-MailboxAudit] Connecting to Exchange..."
+            Write-Verbose "[Invoke-MailboxAudit] Connecting to Exchange..."
 
             # Configure the proxy options:
             $proxyOptions = if ($Proxy) { New-PSSessionOption -ProxyAccessType IEConfig -IdleTimeout -1 } else { New-PSSessionOption -IdleTimeout -1 }
@@ -195,12 +196,12 @@ function Get-MailboxAudit {
                         # Root folder can have different langages per culture.
                         if ($Top) {
                             # Verbose
-                            Write-Verbose "[Get-MailboxAudit] Listing Folder permissions of $Identity, folder name: $proccessingfolder"
+                            Write-Verbose "[Invoke-MailboxAudit] Listing Folder permissions of $Identity, folder name: $proccessingfolder"
 
                             # Request and output the folder permission:
                             Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-MailboxFolderPermission -Identity $using:folderQualifiedName } | Where-Object {$_.AccessRights -ne 'none' -and $_.IsValid -eq $true -and $_.user -notin $Exclude} | Select-Object @{n='User';e={$Identity}},@{n='GrantedUser';e={$_.User -join ', '}},@{n='AccessType';e={"Folder:$proccessingfolder"}},@{n='Permission';e={$_.AccessRights -join ', '}},@{n='Details';e={$_.SharingPermissionFlags -join ', '}}
                             
-                            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Top Folder permission of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
+                            if ($ErrorOut) { Write-Error "[Invoke-MailboxAudit] Error requesting Top Folder permission of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
                             if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
                         }
                         #
@@ -223,14 +224,14 @@ function Get-MailboxAudit {
                                 # FolderType     : User Created
 
                             # Verbose
-                            Write-Verbose "[Get-MailboxAudit] Listing Folder names of $Identity, folder scope: $proccessingfolder"
+                            Write-Verbose "[Invoke-MailboxAudit] Listing Folder names of $Identity, folder scope: $proccessingfolder"
 
                             $folders = Invoke-Command   -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue `
                                                         -ScriptBlock { Get-MailboxFolderStatistics -Identity $using:Identity -FolderScope $using:proccessingfolder | Select-Object FolderId, FolderPath, FolderType }
                             
                             # Check if we've recived folders:
                             if (-not($folders)) {
-                                if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Folder Listing of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
+                                if ($ErrorOut) { Write-Error "[Invoke-MailboxAudit] Error requesting Folder Listing of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
                                 if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
                             }
                             else {
@@ -241,10 +242,10 @@ function Get-MailboxAudit {
                                     $folderQualifiedName = $Identity + ":" + $folderid
 
                                     # Check flag SkipUserCreatedFolder:
-                                    if (($SkipUserCreatedFolder) -and ($_.FolderType -eq 'User Created')) { Write-Verbose "[Get-MailboxAudit] Skipping Folder permissions of $Identity, user-created folder name: $folderpath" }
+                                    if (($SkipUserCreatedFolder) -and ($_.FolderType -eq 'User Created')) { Write-Verbose "[Invoke-MailboxAudit] Skipping Folder permissions of $Identity, user-created folder name: $folderpath" }
                                     else {
                                         # Verbose
-                                        Write-Verbose "[Get-MailboxAudit] Listing Folder permissions of $Identity, folder name: $folderpath"
+                                        Write-Verbose "[Invoke-MailboxAudit] Listing Folder permissions of $Identity, folder name: $folderpath"
 
                                         # Request and output the folder permission:
                                         Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-MailboxFolderPermission -Identity $using:folderQualifiedName } | Where-Object {$_.AccessRights -ne 'none' -and $_.IsValid -eq $true -and $_.user -notin $Exclude} | Select-Object @{n='User';e={$Identity}},@{n='GrantedUser';e={$_.User -join ', '}},@{n='AccessType';e={"Folder:$folderpath"}},@{n='Permission';e={$_.AccessRights -join ', '}},@{n='Details';e={$_.SharingPermissionFlags -join ', '}} | Where-Object {$_.AccessType -notmatch 'Calendar' -and $_.Permission -ne 'AvailabilityOnly'}
@@ -254,7 +255,7 @@ function Get-MailboxAudit {
                         }
                     }
                     catch { 
-                        Write-Error "[Get-MailboxAudit] Can't run getFolderPermission helper function on $Identity, folder $proccessingfolder. Exception: $_"
+                        Write-Error "[Invoke-MailboxAudit] Can't run getFolderPermission helper function on $Identity, folder $proccessingfolder. Exception: $_"
                         if ($OutputErrors) { $_ | Out-File -FilePath $OutputErrorsFile -Append }
                     }
                 })
@@ -269,13 +270,13 @@ function Get-MailboxAudit {
         $global:users.Clear()
 
         # Retreiving all mailboxes of the given identity:
-        Write-Verbose "[Get-MailboxAudit] Retreiving mailboxes with identity $Identity"
+        Write-Verbose "[Invoke-MailboxAudit] Retreiving mailboxes with identity $Identity"
 
         #
         # Retreiving all targeted mailboxes an 'OnBehalf' permission.
         # Get-Mailbox cmdlet do accept wildcards and also advanced filtering.
         # This is not an expensive command.
-        # If aiming thousands of users, better to call Get-MailboxAudit by passing in the pipeline the letters of the alphabet in order, like: a*
+        # If aiming thousands of users, better to call Invoke-MailboxAudit by passing in the pipeline the letters of the alphabet in order, like: a*
         # 
         $mailboxfilter = [scriptblock]::create('((UserPrincipalName -like "'+$Identity+'") -and (IsMailboxEnabled -eq $true) -and (IsInactiveMailbox -eq $false)) '+$Filter)
         $mailboxes = Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-Mailbox -Filter $using:mailboxfilter -ResultSize unlimited | Select-Object PrimarySmtpAddress,GrantSendOnBehalfTo,UserPrincipalName,DisplayName,Name } 
@@ -286,7 +287,7 @@ function Get-MailboxAudit {
             if ($global:users_count -eq 1) { $null = $global:users.Add($mailboxes) }
             elseif ($global:users_count -gt 1) { 
                 $null = $global:users.AddRange($mailboxes)
-                Write-Verbose "[Get-MailboxAudit] Retrieved mailboxes: $global:users_count"
+                Write-Verbose "[Invoke-MailboxAudit] Retrieved mailboxes: $global:users_count"
             }
         }
         else { if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append } }
@@ -297,7 +298,7 @@ function Get-MailboxAudit {
         # This permissions comes with the execution of Get-Mailbox, so we just filter on who has the appropiate property configured
         # This is not an expensive permission.
         #
-        Write-Verbose "[Get-MailboxAudit] Listing SendOnBehalf permissions of $Identity"
+        Write-Verbose "[Invoke-MailboxAudit] Listing SendOnBehalf permissions of $Identity"
         # Query and output the permission
         ($global:users).where({$_.GrantSendOnBehalfTo -ne $null}) | Select-Object @{n='User';e={$_.PrimarySmtpAddress}},@{n='GrantedUser';e={$_.GrantSendOnBehalfTo -join ', '}},@{n='AccessType';e={'SendOnBehalf'}},@{n='Permission';e={'Granted'}},@{n='Details';e={''}}
 
@@ -306,15 +307,15 @@ function Get-MailboxAudit {
         # Retreiving 'SendAs' permission. This permission allows to totally impersonate a user (different than SendOnBehalf)
         # Get-RecipientPermission cmdlet do accept wildcards.
         # This is not an expensive command.
-        # If aiming thousands of users, better to call Get-MailboxAudit by passing in the pipeline the letters of the alphabet in order, like: a*
+        # If aiming thousands of users, better to call Invoke-MailboxAudit by passing in the pipeline the letters of the alphabet in order, like: a*
         # 
         if (-not($SkipSendAsPermission)) {
             # Verbose message:
-            Write-Verbose "[Get-MailboxAudit] Listing SendAs permissions of $Identity"
+            Write-Verbose "[Invoke-MailboxAudit] Listing SendAs permissions of $Identity"
 
             # Request and output the permissions:
             Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-RecipientPermission -ResultSize unlimited -Identity $using:Identity } | Where-Object {$_.AccessControlType -eq 'allow' -and $_.trustee -notmatch 'SELF$'} | Select-Object @{n='User';e={$_.identity}},@{n='GrantedUser';e={$_.trustee -join ', '}},@{n='AccessType';e={'MailboxSendAs'}},@{n='Permission';e={$_.accessrights -join ', '}},@{n='Details';e={''}}
-            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting SendAs permissions of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
+            if ($ErrorOut) { Write-Error "[Invoke-MailboxAudit] Error requesting SendAs permissions of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
             if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
         }
 
@@ -324,18 +325,18 @@ function Get-MailboxAudit {
         # Get-MailboxPermission cmdlet do accept wildcards, but is not fast at all. 
         # Mailbox Permissions are configured at tenant level in the O365 EXO Admin Portal (in case of O365). The user is not aware of this permissions (permission not visible in Outlook)
         #
-        # WARNING : Get-MailboxPermission is a VERY EXPENSIVE cmdlet even when using it with wildcards. It is much recommended to skip it if you're targeting all your mailboxes, and rather running Get-MailboxAudit targeting only Mailbox Permissions against your most critical mailboxes.
-        # To skip Get-MailboxPermission cmdlet in Get-MailboxAudit, use the switch -SkipMailboxPermission.
+        # WARNING : Get-MailboxPermission is a VERY EXPENSIVE cmdlet even when using it with wildcards. It is much recommended to skip it if you're targeting all your mailboxes, and rather running Invoke-MailboxAudit targeting only Mailbox Permissions against your most critical mailboxes.
+        # To skip Get-MailboxPermission cmdlet in Invoke-MailboxAudit, use the switch -SkipMailboxPermission.
         #
         # This is an expensive operation while targeting thousands of users, as by default will return even domain group and self access to the inbox. 
-        # If aiming thousands of users, better to run Get-MailboxAudit exclusively for this permission.
+        # If aiming thousands of users, better to run Invoke-MailboxAudit exclusively for this permission.
         #
         if (-not($SkipMailboxPermission)) { 
-            Write-Verbose "[Get-MailboxAudit] Listing Mailbox permissions of $Identity"
+            Write-Verbose "[Invoke-MailboxAudit] Listing Mailbox permissions of $Identity"
 
             # Request and output the permissions:
             Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-MailboxPermission -ResultSize unlimited -Identity $using:Identity } | Where-Object {$_.isinherited -eq $false -and $_.user -notmatch 'SELF$' -and $_.isvalid -eq $true -and $_.deny -eq $false -and $_.Identity -notmatch 'DiscoverySearchMailbox' -and $_.Identity -notmatch 'AggregateGroupMailbox'} | Select-Object @{n='User';e={$_.Identity}},@{n='GrantedUser';e={$_.user -join ', '}},@{n='AccessType';e={'MailboxPermission'}},@{n='Permission';e={$_.accessrights -join ', '}},@{n='Details';e={''}}
-            if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Mailbox permissions of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
+            if ($ErrorOut) { Write-Error "[Invoke-MailboxAudit] Error requesting Mailbox permissions of $Identity --> $ErrorOut"; $ErrorOut += " --> $Identity" }
             if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
         }
 
@@ -364,7 +365,7 @@ function Get-MailboxAudit {
                 $i++
 
                 # Verbose
-                Write-Verbose "[Get-MailboxAudit] Iterating through mailbox $i of $global:users_count..."
+                Write-Verbose "[Invoke-MailboxAudit] Iterating through mailbox $i of $global:users_count..."
     
                 #
                 # Grab the Folder permissions.
@@ -388,11 +389,11 @@ function Get-MailboxAudit {
                 #
                 if (-not($SkipForwardingRule)) {
                     # Verbose message:
-                    Write-Verbose "[Get-MailboxAudit] Listing Forwarding Rules of $user_primarysmtpaddress"
+                    Write-Verbose "[Invoke-MailboxAudit] Listing Forwarding Rules of $user_primarysmtpaddress"
     
                     # Request and output the rules:
                     Invoke-Command -Session $global:session -ErrorVariable ErrorOut -ErrorAction silentlycontinue -ScriptBlock { Get-InboxRule -Mailbox $using:user_primarysmtpaddress | Select-Object Enabled,IsValid,ForwardAsAttachmentTo,ForwardTo,Description } | Where-Object {$_.enabled -eq $true -and $_.isvalid -eq $true -and ($_.ForwardAsAttachmentTo -ne $null -or $_.ForwardTo -ne $null) -and ($_.ForwardAsAttachmentTo -notmatch $user_emaildomain -or $_.ForwardTo -notmatch $user_emaildomain)} | Select-Object @{n='User';e={$user_primarysmtpaddress}},@{n='GrantedUser';e={$_.ForwardTo -join ',' -join $_.ForwardAsAttachmentTo}},@{n='AccessType';e={'ForwardRule'}},@{n='Permission';e={'Enabled'}},@{n='Details';e={$_.Description}} 
-                    if ($ErrorOut) { Write-Error "[Get-MailboxAudit] Error requesting Forwarding rules of $user_primarysmtpaddress --> $ErrorOut"; $ErrorOut += " --> $user_primarysmtpaddress" }
+                    if ($ErrorOut) { Write-Error "[Invoke-MailboxAudit] Error requesting Forwarding rules of $user_primarysmtpaddress --> $ErrorOut"; $ErrorOut += " --> $user_primarysmtpaddress" }
                     if (($OutputErrors) -and ($ErrorOut)) { $ErrorOut | Out-File -FilePath $OutputErrorsFile -Append }
                 }
 
@@ -409,7 +410,7 @@ function Get-MailboxAudit {
     end { 
         $global:watcher.Stop()
         $watcherResults = $global:watcher.Elapsed | Select-Object days,hours,minutes,seconds | Format-Table -AutoSize
-        Write-Verbose "[Get-MailboxAudit] Completed for $Identity"
+        Write-Verbose "[Invoke-MailboxAudit] Completed for $Identity"
         Write-Verbose ($watcherResults | Out-String)
     }
 }
