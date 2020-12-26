@@ -14,12 +14,15 @@ Tested against O365 Exchange Online.
 ## Usage
 
 1. Use Windows PowerShell 5.1.
-2. Install the module by invoking it or dot-sourcing it. 
+2. Install the module by invoking it or dot-sourcing it:
+```
+iex((iwr https://raw.githubusercontent.com/daniel0x00/Invoke-MailboxAudit/master/Invoke-MailboxAudit.ps1 -UseBasicParsing).content)
+```
 3. Run the cmdlet as shown below.
 
 **MFA support**:
-Does your tenant use multi-factor authentication? 
-Then load this script under a "Microsoft Exchange Online Remote PowerShell Module" PowerShell console and use the `-MFA` switch when using the cmdlet.
+Does your admin account use multi-factor authentication? 
+Then load this script under a ["Microsoft Exchange Online Remote PowerShell Module"](https://docs.microsoft.com/en-us/powershell/exchange/v1-module-mfa-connect-to-exo-powershell?view=exchange-ps) special Windows PowerShell console and use the `-MFA` switch when using the cmdlet.
 
 
 ### List all the permissions for 'user2', 'user5', 'mike'
