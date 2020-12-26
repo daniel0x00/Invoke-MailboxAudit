@@ -1,5 +1,9 @@
 #Requires -Version 5
 function Invoke-MailboxAudit {
+
+    # Author: Daniel Ferreira (@daniel0x00)  
+    # License: BSD 3-Clause
+
     <#
         .SYNOPSIS 
             Grab all Exchange permissions of a user. MailBox level, SendAs, SendOnBehalf, Folder (Top of Information Store, Inbox, Sent Items, Calendar, etc) and more.
