@@ -6,16 +6,18 @@ Tested against O365 Exchange Online.
 
 ## Supported permissions:
 
-- MailBox level
+- MailBox level (assigned by tenant/mailbox administrator)
 - SendAs
 - SendOnBehalf
-- Folder (Top of Information Store, Inbox, Sent Items, Calendar, etc)
+- Folder (Top of Information Store, Inbox, Sent Items, Calendar, etc). These are user-assigned permissions. 
+
+You can use this module to list out all mailboxes where users gave Read (`Owner`, `FullAccess`, etc) permissions to `Everyone` or similar roles, thereby exposing their mailbox to other members in the organization.
            
 ## Usage
 
-1. Use Windows PowerShell 5.1.
+1. Use `Windows PowerShell 5.1`.
 2. Install the module by invoking it or dot-sourcing it:
-```
+```powershell
 iex((iwr https://raw.githubusercontent.com/daniel0x00/Invoke-MailboxAudit/master/Invoke-MailboxAudit.ps1 -UseBasicParsing).content)
 ```
 3. Run the cmdlet as shown below.
@@ -27,10 +29,11 @@ Then load this script under a ["Microsoft Exchange Online Remote PowerShell Modu
 
 ### List all the permissions for 'user2', 'user5', 'mike'
 
-```
+```powershell
 PS C:\> $c = Get-Credential
 PS C:\> 'user2','user5','mike' | Invoke-MailboxAudit -Credential $c -Verbose | Format-Table -AutoSize
-
+```
+```console
 User                          GrantedUser                                    AccessType                                        Permission                            Details
 ----                          -----------                                    ----------                                        ----------                            -------
 user2@cditest.onmicrosoft.com Default                                        Folder:Inbox (Inbox)                              Owner
@@ -49,21 +52,21 @@ mike@cditest.onmicrosoft.com  user2                                          Fol
 
 Note: The `-Proxy` switch forces the cmdlet to use the default proxy settings configured on the computer where the cmdlet runs.
 
-```
+```powershell
 PS C:\> $c = Get-Credential
 PS C:\> Import-Csv .\Users.csv | Invoke-MailboxAudit -Credential $c -MFA -Proxy -SkipMailboxPermission -SkipForwardingRules -Folder Inbox,Calendar,SentItems -Verbose
 ```
 
 ### List all the permissions for users with a mailbox that starts by: a*
 
-```
+```powershell
 PS C:\> $c = Get-Credential
 PS C:\> Invoke-MailboxAudit -Credential $c -Identity a* -SkipMailboxPermission -Verbose 
 ```
 
 ### List all the permissions for all users in the tenant, for the Inbox and Sent Items folders, skipping all child user-created folders as well as forwarding rules
 
-```
+```powershell
 PS C:\> $c = Get-Credential
 PS C:\> 97..(97+25) | select @{n='Identity';e={[char]$_+'*'}} | Invoke-MailboxAudit -Credential $c -Proxy -SkipMailboxPermission -SkipUserCreatedFolder -SkipForwardingRule -SkipSendAsPermission -Folder Inbox,SentItems -Verbose 
 ```
